@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.db import init_db
 from app.gateway.router import router as gateway_router
+from app.ai_engine.router import router as ai_router
+from app.knowledge.router import router as knowledge_router
 
 
 @asynccontextmanager
@@ -23,3 +25,5 @@ async def health():
 
 
 app.include_router(gateway_router)
+app.include_router(ai_router)
+app.include_router(knowledge_router)
