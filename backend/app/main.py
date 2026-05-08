@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.db import init_db
+from app.gateway.router import router as gateway_router
 
 
 @asynccontextmanager
@@ -19,3 +20,6 @@ app = FastAPI(
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+app.include_router(gateway_router)
