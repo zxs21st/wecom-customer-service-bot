@@ -6,6 +6,7 @@ from app.ai_engine.schemas import AIRequest, AIResponse, IntentType
 from app.ai_engine.intent_classifier import classify_intent
 from app.ai_engine.response_generator import generate_response
 from app.knowledge.vector_search import search_similar
+from app.analytics.consultation_logger import log_consultation
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +22,34 @@ async def chat(request: AIRequest, db: AsyncSession = Depends(get_db)):
 
     # 2. 低置信度 → 转人工
     if confidence < 0.5 or intent == IntentType.ESCALATE_TO_HUMAN:
-        return AIResponse(
+        response = AIResponse(
             intent=intent,
             confidence=confidence,
             reply_text="抱歉，这个问题我暂时无法准确回答。正在为您转接人工客服，请稍等。",
             sources=[],
         )
+        await log_consultation(
+            db,
+            question=request.message,
+            answer=response.reply_text,
+            intent_type=intent.value,
+            confidence=confidence,
+            session_id=request.session_id,
+            is_resolved=False,
+        )
+        return response
 
     # 3. 一般闲聊 → 直接回复
     if intent == IntentType.GENERAL_CHAT:
         response = await generate_response(intent, request.message, [])
+        await log_consultation(
+            db,
+            question=request.message,
+            answer=response.reply_text,
+            intent_type=intent.value,
+            confidence=confidence,
+            session_id=request.session_id,
+        )
         return response
 
     # 4. 知识检索 → RAG 回答
@@ -49,6 +68,17 @@ async def chat(request: AIRequest, db: AsyncSession = Depends(get_db)):
     # 生成回答
     response = await generate_response(intent, request.message, results, request.chat_history)
     response.confidence = confidence
+
+    # 记录咨询
+    await log_consultation(
+        db,
+        question=request.message,
+        answer=response.reply_text,
+        intent_type=intent.value,
+        confidence=confidence,
+        session_id=request.session_id,
+        is_resolved=confidence >= 0.5,
+    )
     return response
 
 
