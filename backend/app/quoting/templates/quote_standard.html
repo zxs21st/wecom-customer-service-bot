@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: "Microsoft YaHei", sans-serif; padding: 40px; color: #333; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1890ff; padding-bottom: 20px; }
+        .header h1 { color: #1890ff; margin: 0; }
+        .info { margin-bottom: 20px; }
+        .info p { margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { background: #1890ff; color: white; padding: 10px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .total { text-align: right; font-size: 18px; margin-top: 20px; }
+        .total strong { color: #1890ff; }
+        .terms { margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>报价单</h1>
+        <p>单号: {{ quote_no }} | 生成时间: {{ generated_at }}</p>
+    </div>
+
+    <div class="info">
+        <p><strong>客户:</strong> {{ customer_name }}</p>
+        <p><strong>报价有效期:</strong> {{ valid_until }}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>产品名称</th>
+                <th>规格</th>
+                <th>单价</th>
+                <th>数量</th>
+                <th>折扣</th>
+                <th>小计</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.product_name }}</td>
+                <td>{{ item.specification }}</td>
+                <td>¥{{ "%.2f"|format(item.unit_price) }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ "%.0f"|format(item.discount * 100) }}%</td>
+                <td>¥{{ "%.2f"|format(item.subtotal) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="total">
+        <p>原价: ¥{{ "%.2f"|format(total_amount) }}</p>
+        {% if discount_total > 0 %}
+        <p>优惠: -¥{{ "%.2f"|format(discount_total) }}</p>
+        {% endif %}
+        <p><strong>合计: ¥{{ "%.2f"|format(final_amount) }}</strong></p>
+    </div>
+
+    <div class="terms">
+        <p>条款说明:</p>
+        <p>1. 本报价有效期至 {{ valid_until }}</p>
+        <p>2. 付款方式: 合同签订后 30 日内</p>
+        <p>3. 交货期: 收到订单后 7-15 个工作日</p>
+    </div>
+</body>
+</html>
