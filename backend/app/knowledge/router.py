@@ -83,7 +83,7 @@ async def delete_document(doc_id: str, db: AsyncSession = Depends(get_db)):
 @router.post("/search", response_model=list[SearchResult])
 async def search(data: SearchRequest, db: AsyncSession = Depends(get_db)):
     """搜索知识"""
-    results = await search_similar(data.query, db, top_k=data.top_k, category_filter=data.category)
+    results = await search_similar(data.query, top_k=data.top_k)
     return [
         SearchResult(
             id=r["id"],

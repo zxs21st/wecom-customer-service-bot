@@ -18,7 +18,13 @@ class Settings(BaseSettings):
     # AI
     openai_api_key: str = ""
     openai_chat_model: str = "qwen-plus"
+    openai_base_url: str = ""
     openai_embedding_model: str = "text-embedding-v3"
+
+    # WeKnora 知识库
+    weknora_base_url: str = ""
+    weknora_api_key: str = ""
+    weknora_kb_id: str = ""
 
     # 会话配置
     session_ttl_seconds: int = 1800  # 30 分钟

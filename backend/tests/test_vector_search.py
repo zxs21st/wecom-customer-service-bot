@@ -1,35 +1,46 @@
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock
 from app.knowledge.vector_search import search_similar
 
 
 @pytest.mark.asyncio
 async def test_search_returns_results():
-    # Build mock row objects with attribute access
-    def make_row(id, document_id, content, chunk_index, title, category, similarity):
-        row = MagicMock()
-        row.id = id
-        row.document_id = document_id
-        row.content = content
-        row.chunk_index = chunk_index
-        row.title = title
-        row.category = category
-        row.similarity = similarity
-        return row
+    mock_response_data = {
+        "data": [
+            {
+                "id": "kb1",
+                "title": "产品A规格说明",
+                "description": "产品A的详细规格参数",
+                "file_name": "product_a.pdf",
+            },
+            {
+                "id": "kb2",
+                "title": "产品B规格说明",
+                "description": "产品B的详细规格参数",
+                "file_name": "product_b.pdf",
+            },
+        ],
+        "success": True,
+    }
 
-    mock_results = [
-        make_row(1, "doc1", "content A", 0, "产品A", "product_knowledge", 0.92),
-        make_row(2, "doc2", "content B", 1, "产品B", "product_knowledge", 0.85),
-    ]
+    async def fake_get(*args, **kwargs):
+        class FakeResp:
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return mock_response_data
+        return FakeResp()
 
-    mock_result_obj = MagicMock()
-    mock_result_obj.fetchall.return_value = mock_results
+    with patch("app.knowledge.vector_search.settings") as mock_settings:
+        mock_settings.weknora_base_url = "http://test-server"
+        mock_settings.weknora_api_key = "test-key"
+        mock_settings.weknora_kb_id = "test-kb"
 
-    mock_session = AsyncMock()
-    mock_session.execute.return_value = mock_result_obj
+        with patch("app.knowledge.vector_search.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=AsyncMock(get=fake_get))
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
-    with patch("app.knowledge.vector_search.embed_text", return_value=[0.1] * 1536):
-        results = await search_similar("产品规格", mock_session, top_k=2)
-        assert len(results) == 2
-        assert results[0]["title"] == "产品A"
-        assert results[0]["similarity"] == 0.92
+            results = await search_similar("产品规格", top_k=2)
+            assert len(results) == 2
+            assert results[0]["title"] == "产品A规格说明"
+            assert results[0]["similarity"] == 1.0

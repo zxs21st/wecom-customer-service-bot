@@ -53,17 +53,9 @@ async def chat(request: AIRequest, db: AsyncSession = Depends(get_db)):
         return response
 
     # 4. 知识检索 → RAG 回答
-    # 根据意图确定搜索类别
-    category_map = {
-        IntentType.PRODUCT_KNOWLEDGE: "product_knowledge",
-        IntentType.CONFIG_QUERY: "config_guide",
-        IntentType.AFTER_SALES: "after_sales",
-    }
-    category = category_map.get(intent)
-
     # 搜索相关知识
-    results = await search_similar(request.message, db, top_k=5, category_filter=category)
-    logger.info(f"Found {len(results)} relevant knowledge pieces")
+    results = await search_similar(request.message, top_k=5)
+    logger.info(f"Found {len(results)} relevant knowledge pieces from WeKnora")
 
     # 生成回答
     response = await generate_response(intent, request.message, results, request.chat_history)

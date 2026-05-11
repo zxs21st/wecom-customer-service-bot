@@ -17,7 +17,7 @@ async def handle_after_sales(
     """处理售后意图: RAG 知识问答 + 必要时创建工单"""
     async with async_session() as session:
         # 1. 检索售后政策知识
-        results = await search_similar(message, session, top_k=5, category_filter="after_sales")
+        results = await search_similar(message, top_k=5)
 
         # 2. 生成回答
         if results:

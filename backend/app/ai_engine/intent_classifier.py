@@ -30,9 +30,10 @@ async def classify_intent(message: str) -> tuple[IntentType, float]:
     prompt = INTENT_CLASSIFICATION_PROMPT.format(message=message)
 
     response = await litellm.acompletion(
-        model=settings.openai_chat_model,
+        model="anthropic/qwen3.6-plus",
         messages=[{"role": "user", "content": prompt}],
         api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url or None,
         temperature=0.1,
         max_tokens=50,
     )

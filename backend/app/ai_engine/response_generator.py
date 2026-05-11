@@ -32,9 +32,10 @@ async def generate_response(
 
     # 调用 LLM
     response = await litellm.acompletion(
-        model=settings.openai_chat_model,
+        model="anthropic/qwen3.6-plus",
         messages=messages,
         api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url or None,
         temperature=0.3,
         max_tokens=1000,
     )

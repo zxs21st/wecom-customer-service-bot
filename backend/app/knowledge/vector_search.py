@@ -1,55 +1,46 @@
-import json
 import logging
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.knowledge.embedding_service import embed_text
+import httpx
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# pgvector 余弦相似度搜索查询
-VECTOR_SEARCH_SQL = """
-SELECT kv.id, kv.document_id, kv.content, kv.chunk_index, kd.title, kd.category,
-       1 - (kv.embedding::vector <=> :query_vector::vector) AS similarity
-FROM knowledge_vector kv
-JOIN knowledge_document kd ON kv.document_id = kd.id
-ORDER BY similarity DESC
-LIMIT :top_k
-"""
 
+async def search_similar(query: str, db=None, top_k: int = 5, category_filter: str | None = None) -> list[dict]:
+    """通过 WeKnora API 搜索相关知识"""
+    if not settings.weknora_base_url or not settings.weknora_api_key:
+        logger.warning("WeKnora 未配置，返回空结果")
+        return []
 
-async def search_similar(query: str, session: AsyncSession, top_k: int = 5, category_filter: str | None = None) -> list[dict]:
-    """搜索与查询文本相似的知识片段"""
-    # 生成查询向量
-    query_vector = await embed_text(query)
-    query_vector_str = json.dumps(query_vector)
-
-    # 构建 SQL
-    sql = VECTOR_SEARCH_SQL
+    params = {"query": query, "top_k": top_k}
+    if settings.weknora_kb_id:
+        params["kb_id"] = settings.weknora_kb_id
     if category_filter:
-        sql = sql.replace("LIMIT :top_k", f"AND kd.category = :category\nLIMIT :top_k")
+        params["category"] = category_filter
 
-    result = await session.execute(
-        text(sql),
-        {
-            "query_vector": query_vector_str,
-            "top_k": top_k,
-            "category": category_filter,
-        } if category_filter else {
-            "query_vector": query_vector_str,
-            "top_k": top_k,
-        }
-    )
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(
+                f"{settings.weknora_base_url}/api/v1/knowledge/search",
+                params=params,
+                headers={"x-api-key": settings.weknora_api_key},
+            )
+            resp.raise_for_status()
+            data = resp.json()
 
-    rows = result.fetchall()
-    return [
-        {
-            "id": str(row.id),
-            "document_id": str(row.document_id),
-            "content": row.content,
-            "chunk_index": row.chunk_index,
-            "title": row.title,
-            "category": row.category,
-            "similarity": float(row.similarity),
-        }
-        for row in rows
-    ]
+        results = []
+        for item in data.get("data", []):
+            results.append({
+                "id": item.get("id", ""),
+                "title": item.get("title", ""),
+                "content": item.get("description", ""),
+                "category": "",
+                "similarity": 1.0,
+                "source": item.get("file_name", ""),
+            })
+
+        logger.info(f"WeKnora search returned {len(results)} results for: {query[:30]}")
+        return results
+
+    except Exception as e:
+        logger.error(f"WeKnora search error: {e}")
+        return []
